@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -21,6 +22,15 @@ public class DrawScript : MonoBehaviour
     List<List<Vector2>> shapes = new List<List<Vector2>>();
 
     FinalCircleIdentifier finalCircleIdentifier;
+
+    // Contains all points of all shapes
+    List<Vector2> masterPointCloud = new List<Vector2>();
+
+    Coroutine analysisCoroutine;
+    // Wait before analyzing the drawn shape
+    [SerializeField] float analysisDelay = 1.5f;
+
+    [SerializeField] RenderTexture renderTexture;
     private void Start()
     {
         finalCircleIdentifier = gameObject.AddComponent<FinalCircleIdentifier>();
@@ -51,31 +61,35 @@ public class DrawScript : MonoBehaviour
 
     IEnumerator IsMouseOnDrawable()
     {
-        yield return new WaitForSeconds(0.01f);
-        Vector3 mousePos = Mouse.current.position.ReadValue();
-        Ray ray = Camera.main.ScreenPointToRay(mousePos);
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit))
+        while (true)
         {
-            if ((drawingLayer.value & (1 << hit.collider.gameObject.layer)) != 0)
+            yield return new WaitForSeconds(0.01f);
+            Vector3 mousePos = Mouse.current.position.ReadValue();
+            Ray ray = Camera.main.ScreenPointToRay(mousePos);
+            RaycastHit hit;
+            if (Physics.Raycast(ray, out hit))
             {
-                canDraw = true;
-                Debug.Log("Mouse is on drawable plane: " + hit.collider.gameObject.name);
-                objBelowDrawing = hit.collider.gameObject;
-                yield return null;
-                
+                if ((drawingLayer.value & (1 << hit.collider.gameObject.layer)) != 0)
+                {
+                    canDraw = true;
+                    objBelowDrawing = hit.collider.gameObject;
+                    yield return null;
+                }
             }
+            canDraw = false;
         }
-        canDraw = false;
-
-        StartCoroutine(IsMouseOnDrawable());
     }
 
     void StartDraw()
     {
-        Debug.Log("Started drawing");
-        pointList.Clear();
+        // If the user draws again, do not analyze yet
+        if (analysisCoroutine != null)
+        {
+            StopCoroutine(analysisCoroutine);
+            Debug.Log("The user hasn't finished drawing, analysis rescheduled.");
+        }
 
+        pointList.Clear();
         lineRenderer = Instantiate(lineRendererPrefab, objBelowDrawing.transform).GetComponent<LineRenderer>();
         allLineRenderers.Add(lineRenderer);
         lineRenderer.positionCount = 0;
@@ -86,21 +100,19 @@ public class DrawScript : MonoBehaviour
         if (check)
         {
             AddPoint(hitPoint);
+            previousPos = hitPoint;
         }
     }
 
     void Draw()
     {
-        Debug.Log("Drawing");
-
-        // draw on the plane
         Vector3 surfacePosition;
         bool check;
         (surfacePosition, check) = GetSurfacePosition();
-        if (check) { 
-            if(Vector3.Distance(surfacePosition, previousPos) > minDistanceBetweenPoints)
+        if (check)
+        {
+            if (Vector3.Distance(surfacePosition, previousPos) > minDistanceBetweenPoints)
             {
-                // Add a new point to the line renderer
                 AddPoint(surfacePosition);
                 previousPos = surfacePosition;
             }
@@ -109,16 +121,41 @@ public class DrawScript : MonoBehaviour
 
     void StopDraw()
     {
-        Debug.Log("Stopped drawing");
         previousPos = Vector3.zero;
-
         shapes.Add(new List<Vector2>(pointList));
-        // Save shape created by the user
-        bool check = finalCircleIdentifier.IsCircle(pointList);
-        if (!check)
-        {
-            Debug.LogWarning("Line doesn't make a circle");
+        // Add to global point cloud
+        masterPointCloud.AddRange(pointList);
+
+        // If the user doesn't draw after a delay -> analyze the shape
+        analysisCoroutine = StartCoroutine(WaitAndAnalyzeSpell());
+    }
+
+    IEnumerator WaitAndAnalyzeSpell()
+    {
+        Debug.Log($"Start analysis countdown: {analysisDelay} seconds...");
+        yield return new WaitForSeconds(analysisDelay);
+
+        Debug.LogWarning("Times up, elaborating spell...");
+        ProcessMagicalDrawing();
+    }
+
+    void ProcessMagicalDrawing()
+    {
+        Vector2 circleCenter = new Vector2();
+        float circleRadius = 0f, circleAccuracy = 0f;
+        bool check = false;
+        check = finalCircleIdentifier.IsCircle(masterPointCloud, out circleCenter, out circleRadius, out circleAccuracy);
+        // FASE 1: Trasformare l'area di disegno in Texture2D o elaborare la masterPointCloud
+        if (!check){
+            Debug.LogWarning("The drawn shape is not a circle, the spell waits for one.");
         }
+        // FASE 2: Passare i dati alla Rete Neurale (Unity Barracuda)
+        // FASE 3: Calcolare accuratezza ed eseguire l'effetto visivo
+
+        Debug.Log($"Completed analysis of {allLineRenderers.Count} strokes and {masterPointCloud.Count} points.");
+
+        // Alla fine dell'incantesimo (riuscito o fallito), pulisci l'area
+        // ClearCanvas();
     }
 
     (Vector3,bool) GetSurfacePosition()
@@ -163,6 +200,16 @@ public class DrawScript : MonoBehaviour
                 {
                     lineRenderer = allLineRenderers[allLineRenderers.Count - 1];
                 }
+                if (analysisCoroutine != null)
+                {
+                    StopCoroutine(analysisCoroutine);
+                    Debug.Log("User did Undo, wait for new input.");
+                }
+            }
+            masterPointCloud.Clear();
+            foreach(var lists in shapes)
+            {
+                masterPointCloud.AddRange(lists);
             }
         }
         Debug.Log(shapes.Count);
