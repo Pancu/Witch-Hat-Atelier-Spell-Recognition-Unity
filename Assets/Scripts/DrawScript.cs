@@ -19,8 +19,11 @@ public class DrawScript : MonoBehaviour
     GameObject objBelowDrawing;
 
     List<List<Vector2>> shapes = new List<List<Vector2>>();
+
+    FinalCircleIdentifier finalCircleIdentifier;
     private void Start()
     {
+        finalCircleIdentifier = gameObject.AddComponent<FinalCircleIdentifier>();
         StartCoroutine(IsMouseOnDrawable());
     }
 
@@ -111,6 +114,11 @@ public class DrawScript : MonoBehaviour
 
         shapes.Add(new List<Vector2>(pointList));
         // Save shape created by the user
+        bool check = finalCircleIdentifier.IsCircle(pointList);
+        if (!check)
+        {
+            Debug.LogWarning("Line doesn't make a circle");
+        }
     }
 
     (Vector3,bool) GetSurfacePosition()
@@ -122,18 +130,23 @@ public class DrawScript : MonoBehaviour
 
         if (Physics.Raycast(ray, out hit, Mathf.Infinity, actualDrawLayer))
         {
-            return (lineRenderer.transform.InverseTransformPoint(hit.point), true);
+            return (hit.point, true);
         }
 
         return (Vector3.zero, false);
     }
 
     void AddPoint(Vector3 position)
-    {
-        Vector3 offset = new Vector3(0f, 0f, -0.01f); // Offset to avoid z-fighting
-        pointList.Add(position + offset);
+    {        
+        pointList.Add(new Vector2(position.x, position.z));
+
         lineRenderer.positionCount = pointList.Count;
-        lineRenderer.SetPosition(lineRenderer.positionCount - 1, position + offset);
+
+        Vector3 localPos = lineRenderer.transform.InverseTransformPoint(position);
+
+        Vector3 visualOffset = new Vector3(0f, 0f, -0.01f);
+
+        lineRenderer.SetPosition(lineRenderer.positionCount - 1, localPos + visualOffset);
     }
 
     public void Undo()
