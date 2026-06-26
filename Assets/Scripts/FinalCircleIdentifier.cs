@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class FinalCircleIdentifier : MonoBehaviour
 {
-    private const int NUMBER_OF_SECTORS = 8; // Number of sectors to divide the circle into, to check if it's connected
+    private const int NUMBER_OF_SECTORS = 64; // Number of sectors to divide the circle into, to check if it's connected
     private const float radiusTolerancePercentage = 0.25f; // Tolerance of circle error
 
     //identifies if the shape drawn is a circle with a bigger radius than 50% of the mesh drawn on.

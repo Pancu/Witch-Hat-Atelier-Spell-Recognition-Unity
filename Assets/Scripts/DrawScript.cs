@@ -31,6 +31,10 @@ public class DrawScript : MonoBehaviour
     [SerializeField] float analysisDelay = 1.5f;
 
     [SerializeField] RenderTexture renderTexture;
+
+    [Header("AI Camera Setup")]
+    [SerializeField] Camera aiCamera; // AI neural network camera
+    [SerializeField] RenderTexture highResRT; // To eventually downsample if needed
     private void Start()
     {
         finalCircleIdentifier = gameObject.AddComponent<FinalCircleIdentifier>();
@@ -145,17 +149,83 @@ public class DrawScript : MonoBehaviour
         float circleRadius = 0f, circleAccuracy = 0f;
         bool check = false;
         check = finalCircleIdentifier.IsCircle(masterPointCloud, out circleCenter, out circleRadius, out circleAccuracy);
-        // FASE 1: Trasformare l'area di disegno in Texture2D o elaborare la masterPointCloud
+
         if (!check){
             Debug.LogWarning("The drawn shape is not a circle, the spell waits for one.");
+            return;
         }
+        Debug.Log("Valid outer circle! Isolating content...");
+
+        // 2. Divide circle content from circle border
+        // Hide the circle border line renderers (set to default layer)
+        List<LineRenderer> circleLines = new List<LineRenderer>();
+        foreach (var lr in allLineRenderers)
+        {
+            // If close to the radius, it's a circle border
+            if (lr.positionCount > 0)
+            {
+                Vector3 worldPos = lr.transform.TransformPoint(lr.GetPosition(0));
+                Vector2 pos2D = new Vector2(worldPos.x, worldPos.z);
+
+                float distFromCenter = Vector2.Distance(pos2D, circleCenter);
+                // ... * tolerance factor to account for inaccuracies in drawing
+                if (distFromCenter > circleRadius * 0.9f)
+                {
+                    circleLines.Add(lr);
+                    lr.gameObject.layer = LayerMask.NameToLayer("Default"); // Hidden from AI camera
+                }
+            }
+        }
+
+        // Move AI camera to the center of the circle and adjust its orthographic size to fit the circle
+        Vector3 center3D = new Vector3(circleCenter.x, aiCamera.transform.position.y, circleCenter.y);
+        aiCamera.transform.position = center3D;
+
+        // Zoom a bit more to ensure the circle fits well within the camera view
+        aiCamera.orthographicSize = circleRadius * 0.95f;
+
+
+        /* Restore the circle border line renderers to their original layer
+        foreach (var lr in circleLines)
+        {
+            lr.gameObject.layer = LayerMask.NameToLayer("Ink");
+        }*/
+
+        // Check if the texture is empty
+        Texture2D drawTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RGBA32, false);
+        if (IsTextureEmpty(drawTexture))
+        {
+            Debug.LogWarning("Empty outer circle! No magic performed.");
+            Destroy(highResRT);
+            //ClearCanvas();
+            return;
+        }
+
+        // Send to AI (Barracuda / Sentis)
+        Debug.Log("Sending texture to AI...");
+
         // FASE 2: Passare i dati alla Rete Neurale (Unity Barracuda)
+
         // FASE 3: Calcolare accuratezza ed eseguire l'effetto visivo
 
         Debug.Log($"Completed analysis of {allLineRenderers.Count} strokes and {masterPointCloud.Count} points.");
 
         // Alla fine dell'incantesimo (riuscito o fallito), pulisci l'area
         // ClearCanvas();
+    }
+
+    bool IsTextureEmpty(Texture2D tex)
+    {
+        Color[] pixels = tex.GetPixels();
+        foreach (Color c in pixels)
+        {
+            // Se troviamo un pixel significativamente luminoso (vicino al bianco), la texture non è vuota
+            if (c.r > 0.2f)
+            {
+                return false;
+            }
+        }
+        return true; // Solo pixel neri, la lavagna interna è vuota
     }
 
     (Vector3,bool) GetSurfacePosition()

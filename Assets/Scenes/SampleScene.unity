@@ -280,6 +280,8 @@ MonoBehaviour:
   allLineRenderers: []
   analysisDelay: 1.5
   renderTexture: {fileID: 8400000, guid: eb59e91a5d0f0844e81e91a783c9d147, type: 2}
+  aiCamera: {fileID: 1025394692}
+  highResRT: {fileID: 8400000, guid: eb59e91a5d0f0844e81e91a783c9d147, type: 2}
 --- !u!1 &125370732
 GameObject:
   m_ObjectHideFlags: 0
