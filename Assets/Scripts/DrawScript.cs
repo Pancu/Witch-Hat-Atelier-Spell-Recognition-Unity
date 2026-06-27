@@ -262,7 +262,8 @@ public class DrawScript : MonoBehaviour
 
             singleSymbolTex.Apply();
 
-            // Save: TextureSaver.SaveTextureAsPNG(singleSymbolTex, "symbol_" + System.DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + UnityEngine.Random.Range(0000, 9999));
+            // Save:
+            TextureSaver.SaveTextureAsPNG(singleSymbolTex, "symbol_" + System.DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + UnityEngine.Random.Range(0000, 9999));
 
             RenderTexture.active = currentRT;
 
@@ -279,8 +280,6 @@ public class DrawScript : MonoBehaviour
                 if (classLabel == "Garbage" || aiConfidence < 0.65f)
                 {
                     Debug.LogWarning("The isolated symbol is garbage or unstable. Spell failed.");
-                    // Logica di interruzione (es. interrompi il loop ed esci)
-                    break;
                 }
                 else if (classLabel == "Fire Sigil")
                 {
