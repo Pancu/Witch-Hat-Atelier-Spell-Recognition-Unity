@@ -1,4 +1,4 @@
-# Witch Hat Atelier Spell Symbol Recognizer - Unity Engine Sample Project
+# Witch Hat Atelier Spell Recognition for Unity - Sample Project
 
 https://github.com/user-attachments/assets/eb6cf659-12bd-4c15-bab7-a3fb1f937eac
 
