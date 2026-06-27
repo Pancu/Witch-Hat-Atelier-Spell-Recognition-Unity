@@ -6,7 +6,7 @@ It recognizes Fire symbols and Columns, read below how to add more symbols
 
 **This project uses a neural network trained in https://teachablemachine.withgoogle.com/ to recognize if a specific shape is a specific symbol, and calculates the precision**
 
-Check debug logs for spell recognizion
+Check debug logs for spell recognition
 
 ## How does it work?
 
