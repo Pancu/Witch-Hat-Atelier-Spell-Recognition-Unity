@@ -8,6 +8,8 @@ It recognizes Fire symbols and Columns, read below how to add more symbols
 
 Check debug logs for spell recognition
 
+*There's a sample fire particle system, however the Columns symbol don't affect it yet. You can change this inside SpellVFXMaker.cs*
+
 ## How does it work?
 
 The system waits for the player input as a cluster of points, tries to calculate the center of the drawing using Bouding Boxes, and sets a specific radius.
