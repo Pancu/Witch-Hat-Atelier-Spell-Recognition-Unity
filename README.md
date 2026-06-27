@@ -1,3 +1,8 @@
+
+https://github.com/user-attachments/assets/eb6cf659-12bd-4c15-bab7-a3fb1f937eac
+
+<img width="422" height="196" alt="Screenshot 2026-06-27 201947" src="https://github.com/user-attachments/assets/d4619145-516e-4c2a-80c0-99d8f8688835" />
+
 # Witch Hat Atelier Spell Symbol Recognizer - Unity Engine Sample Project
 
 **Unity Engine** version, inspired by the web version: https://github.com/ytnrvdf/wha-spell-simulator
