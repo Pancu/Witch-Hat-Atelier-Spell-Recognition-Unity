@@ -39,6 +39,9 @@ public class SpellAIReader : MonoBehaviour
         TensorShape inputShape = new TensorShape(1, 224, 224, 3);
         using Tensor<float> inputTensor = new Tensor<float>(inputShape);
 
+        // Save for debug:
+        // TextureSaver.SaveTextureAsPNG(symbolTexture, "AIReadSymbol_" + UnityEngine.Random.Range(0000, 9999)); // Save the texture for debugging
+        
         // Explicitly tell the converter that your Tensor uses the NHWC layout,
         // and automatically normalize pixel bytes (0-255) down to the 0.0-1.0 range required by Teachable Machine.
         TextureTransform transform = new TextureTransform().SetTensorLayout(TensorLayout.NHWC);

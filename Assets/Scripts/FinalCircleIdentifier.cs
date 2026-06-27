@@ -4,91 +4,132 @@ using UnityEngine;
 
 public class FinalCircleIdentifier : MonoBehaviour
 {
-    private const int NUMBER_OF_SECTORS = 64; // Number of sectors to divide the circle into, to check if it's connected
-    private const float radiusTolerancePercentage = 0.25f; // Tolerance of circle error
+    private const int NUMBER_OF_SECTORS = 72;
+    private const float MIN_COVERAGE = 0.90f;          // At least 90% of sectors occupied
+    private const int MAX_CONSECUTIVE_EMPTY = 3;       // Small gaps allowed
+    private const float MAX_RADIUS_DEVIATION = 0.15f;  // 15%
 
-    //identifies if the shape drawn is a circle with a bigger radius than 50% of the mesh drawn on.
-    public bool IsCircle(List<Vector2> points, out Vector2 circleCenter, out float circleRadius, out float circleAccuracy)
+    public bool IsCircle(
+        List<Vector2> points,
+        out Vector2 circleCenter,
+        out float circleRadius,
+        out float circleAccuracy)
     {
         circleCenter = Vector2.zero;
-        circleRadius = 0f;
-        circleAccuracy = 0f;
+        circleRadius = 0;
+        circleAccuracy = 0;
 
-        if (points.Count < 20) return false;
+        if (points == null || points.Count < 20)
+            return false;
 
-        // Bounds, center and radius calculation
-        float maxX = float.MinValue, maxY = float.MinValue;
-        float minX = float.MaxValue, minY = float.MaxValue;
-        foreach (Vector2 point in points)
-        {
-            if (point.x > maxX) maxX = point.x;
-            if (point.y > maxY) maxY = point.y;
-            if (point.x < minX) minX = point.x;
-            if (point.y < minY) minY = point.y;
-        }
+        // Estimate center (centroid)
+        foreach (Vector2 p in points)
+            circleCenter += p;
 
-        circleCenter = new Vector2((maxX + minX) / 2f, (maxY + minY) / 2f);
-        float width = maxX - minX;
-        float height = maxY - minY;
-        circleRadius = (width + height) / 4f;
+        circleCenter /= points.Count;
 
-        // Avoids division by zero
-        if (circleRadius < 0.05f) return false;
+        // Furthest point in each sector
+        float[] sectorRadius = new float[NUMBER_OF_SECTORS];
 
-        // SECTORS: Check if the shape is connected and covers all sectors
-        // sectorsOccupied[i] = true if the sector i has at least one point
-        bool[] sectorsOccupied = new bool[NUMBER_OF_SECTORS];
-
-        List<float> perimeterDistances = new List<float>();
-
-        foreach (Vector2 point in points)
-        {
-            float distance = Vector2.Distance(point, circleCenter);
-
-            // Check if point is within the radius tolerance
-            float minValidRadius = circleRadius * (1f - radiusTolerancePercentage);
-            float maxValidRadius = circleRadius * (1f + radiusTolerancePercentage);
-
-            if (distance >= minValidRadius && distance <= maxValidRadius)
-            {
-                // Point is within the valid radius range, consider it for sector occupation
-                float angle = Mathf.Atan2(point.y - circleCenter.y, point.x - circleCenter.x);
-
-                // Convert angle from radians to degrees and normalize it to [0, 360)
-                float angleDegrees = angle * Mathf.Rad2Deg;
-                if (angleDegrees < 0) angleDegrees += 360f;
-
-                // Find the sector index for this angle
-                int sectorIndex = Mathf.FloorToInt(angleDegrees / (360f / NUMBER_OF_SECTORS));
-                sectorIndex = Mathf.Clamp(sectorIndex, 0, NUMBER_OF_SECTORS - 1);
-
-                sectorsOccupied[sectorIndex] = true;
-                perimeterDistances.Add(distance);
-            }
-        }
-
-        // Check if all sectors are occupied
         for (int i = 0; i < NUMBER_OF_SECTORS; i++)
+            sectorRadius[i] = -1f;
+
+        float sectorSize = Mathf.PI * 2f / NUMBER_OF_SECTORS;
+
+        foreach (Vector2 p in points)
         {
-            if (!sectorsOccupied[i])
+            Vector2 d = p - circleCenter;
+
+            float angle = Mathf.Atan2(d.y, d.x);
+
+            if (angle < 0)
+                angle += Mathf.PI * 2f;
+
+            int sector = Mathf.FloorToInt(angle / sectorSize);
+
+            if (sector >= NUMBER_OF_SECTORS)
+                sector = NUMBER_OF_SECTORS - 1;
+
+            float dist = d.magnitude;
+
+            if (dist > sectorRadius[sector])
+                sectorRadius[sector] = dist;
+        }
+
+        // Check coverage
+        int occupied = 0;
+        float radiusSum = 0;
+
+        foreach (float r in sectorRadius)
+        {
+            if (r > 0)
             {
-                Debug.Log($"Incomplete circle, Sector {i} empty (draw a line there).");
-                return false; // The circle has a hole
+                occupied++;
+                radiusSum += r;
             }
         }
 
-        // Calculate accuracy based on the average distance from the centerco
-        float totalDeviation = 0f;
-        foreach (float dist in perimeterDistances)
+        float coverage = occupied / (float)NUMBER_OF_SECTORS;
+
+        if (coverage < MIN_COVERAGE)
         {
-            totalDeviation += Mathf.Abs(dist - circleRadius);
+            Debug.Log("Not enough circle coverage.");
+            return false;
         }
 
-        float averageDeviation = totalDeviation / perimeterDistances.Count;
-        // 100% accuracy means averageDeviation = 0, 0% accuracy means averageDeviation = circleRadius
-        circleAccuracy = Mathf.Clamp01(1f - (averageDeviation / circleRadius));
+        // Calculate average radius
+        circleRadius = radiusSum / occupied;
 
-        Debug.Log($"Circle completed! Accuracy: {circleAccuracy * 100f}%");
+        // Calculate accuracy based on radius deviation
+        float deviation = 0;
+
+        foreach (float r in sectorRadius)
+        {
+            if (r > 0)
+                deviation += Mathf.Abs(r - circleRadius);
+        }
+
+        deviation /= occupied;
+
+        if (deviation > circleRadius * MAX_RADIUS_DEVIATION)
+        {
+            Debug.Log("Radius varies too much.");
+            return false;
+        }
+
+        // Gap check
+        int currentGap = 0;
+        int largestGap = 0;
+
+        for (int i = 0; i < NUMBER_OF_SECTORS * 2; i++)
+        {
+            int s = i % NUMBER_OF_SECTORS;
+
+            if (sectorRadius[s] < 0)
+            {
+                currentGap++;
+                largestGap = Mathf.Max(largestGap, currentGap);
+            }
+            else
+            {
+                currentGap = 0;
+            }
+        }
+
+        if (largestGap > MAX_CONSECUTIVE_EMPTY)
+        {
+            Debug.Log("Circle has a large opening.");
+            return false;
+        }
+
+        // Overall accuracy
+        float radialScore =
+            Mathf.Clamp01(1f - deviation / (circleRadius * MAX_RADIUS_DEVIATION));
+
+        circleAccuracy = radialScore * coverage;
+
+        Debug.Log($"Circle detected! Accuracy: {circleAccuracy:P1}");
+
         return true;
     }
 }

@@ -132,6 +132,8 @@ GameObject:
   - component: {fileID: 108992572}
   - component: {fileID: 108992571}
   - component: {fileID: 108992575}
+  - component: {fileID: 108992576}
+  - component: {fileID: 108992577}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -282,6 +284,39 @@ MonoBehaviour:
   renderTexture: {fileID: 8400000, guid: eb59e91a5d0f0844e81e91a783c9d147, type: 2}
   aiCamera: {fileID: 1025394692}
   highResRT: {fileID: 8400000, guid: eb59e91a5d0f0844e81e91a783c9d147, type: 2}
+  aiReader: {fileID: 108992576}
+  vfxMaker: {fileID: 108992577}
+--- !u!114 &108992576
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 108992570}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fcbaac0ad503bfd4085f9346aa5b1c32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpellAIReader
+  modelAsset: {fileID: 5022602860645237092, guid: 114791f2d37eee140872875d849be0dd, type: 3}
+  labels:
+  - Fire Sigil
+  - Column
+  - Garbage
+--- !u!114 &108992577
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 108992570}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e0efc378e9b546a48be61b526592dd8a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpellVFXMaker
+  fireCorePrefab: {fileID: 7500370386446196091, guid: d591cc1c8d522a842972895700a5f019, type: 3}
+  columnPrefab: {fileID: 7500370386446196091, guid: d591cc1c8d522a842972895700a5f019, type: 3}
 --- !u!1 &125370732
 GameObject:
   m_ObjectHideFlags: 0

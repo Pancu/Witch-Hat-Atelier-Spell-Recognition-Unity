@@ -4,6 +4,15 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+public struct AnalyzedSymbolData
+{
+    public string ClassLabel;     // "Fire Sigil", "Column", etc.
+    public float Accuracy;        // The accuracy provided by the ML model
+    public float Size;            // maxDim (the scale of the symbol)
+    public float RotationAngle;   // The angle in degrees calculated in C#
+    public Vector3 CenterPosition;// The central coordinate 3D of the symbol
+}
+
 public class DrawScript : MonoBehaviour
 {
     [SerializeField] LayerMask drawingLayer;
@@ -37,6 +46,8 @@ public class DrawScript : MonoBehaviour
     [SerializeField] RenderTexture highResRT; // To eventually downsample if needed
 
     [SerializeField] private SpellAIReader aiReader;
+
+    [SerializeField] private SpellVFXMaker vfxMaker;
     private void Start()
     {
         finalCircleIdentifier = gameObject.AddComponent<FinalCircleIdentifier>();
@@ -158,31 +169,77 @@ public class DrawScript : MonoBehaviour
         }
         Debug.Log("Valid outer circle! Isolating content...");
 
+        // This list collects all data of the symbols found inside the circle
+        List<AnalyzedSymbolData> collectedSymbols = new List<AnalyzedSymbolData>();
+
         // Hide outer circle in "Default" layer
         List<LineRenderer> circleLines = new List<LineRenderer>();
+        List<LineRenderer> innerLines = new List<LineRenderer>();
+
         int inkLayerIndex = LayerMask.NameToLayer("Ink");
         int defaultLayerIndex = LayerMask.NameToLayer("Default");
 
+        float bandMin = circleRadius * 0.80f;
+        float bandMax = circleRadius * 1.20f;
+
         foreach (var lr in allLineRenderers)
         {
-            if (lr.positionCount > 0)
-            {
-                Vector3 worldPos = lr.transform.TransformPoint(lr.GetPosition(0));
-                Vector2 pos2D = new Vector2(worldPos.x, worldPos.z);
-                float distFromCenter = Vector2.Distance(pos2D, circleCenter);
+            if (lr.positionCount < 2)
+                continue;
 
-                if (distFromCenter > circleRadius * 0.9f)
+            Vector3[] pts = new Vector3[lr.positionCount];
+            lr.GetPositions(pts);
+
+            int inBand = 0;
+            int total = pts.Length;
+
+            Vector2 first = Vector2.zero;
+            Vector2 last = Vector2.zero;
+            bool firstSet = false;
+
+            foreach (var p in pts)
+            {
+                Vector3 w = lr.transform.TransformPoint(p);
+                Vector2 pos2D = new Vector2(w.x, w.z);
+
+                float d = Vector2.Distance(pos2D, circleCenter);
+
+                if (d >= bandMin && d <= bandMax)
+                    inBand++;
+
+                if (!firstSet)
                 {
-                    circleLines.Add(lr);
-                    lr.gameObject.layer = defaultLayerIndex;
+                    first = pos2D;
+                    firstSet = true;
                 }
+
+                last = pos2D;
+            }
+
+            float ratio = inBand / (float)total;
+
+            // closure check (is it a loop?)
+            float closure = Vector2.Distance(first, last);
+
+            bool isOuterCircle =
+                ratio > 0.65f &&
+                closure < circleRadius * 0.25f;
+
+            if (isOuterCircle)
+            {
+                circleLines.Add(lr);
+                lr.gameObject.layer = defaultLayerIndex;
+            }
+            else
+            {
+                innerLines.Add(lr);
             }
         }
 
         // GROUP INNER SYMBOLS
         // If two lines' dots have a lesser tolerance distance than a threshold, they are considered part of the same symbol
         float connectionTolerance = 0.2f;
-        List<List<LineRenderer>> internalSymbols = GroupInternalSymbols(allLineRenderers, connectionTolerance);
+        List<List<LineRenderer>> internalSymbols = GroupInternalSymbols(innerLines, connectionTolerance);
 
         Debug.Log($"Found {internalSymbols.Count} distinct internal symbols inside the circle.");
 
@@ -262,8 +319,8 @@ public class DrawScript : MonoBehaviour
 
             singleSymbolTex.Apply();
 
-            // Save:
-            TextureSaver.SaveTextureAsPNG(singleSymbolTex, "symbol_" + System.DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + UnityEngine.Random.Range(0000, 9999));
+            // Save for debug:
+            //TextureSaver.SaveTextureAsPNG(singleSymbolTex, "symbol_" + System.DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + UnityEngine.Random.Range(0000, 9999));
 
             RenderTexture.active = currentRT;
 
@@ -272,27 +329,33 @@ public class DrawScript : MonoBehaviour
             {
                 Debug.Log($"Isolated symbol sent to AI (Dimensions: {symbolWidth}x{symbolHeight})");
 
-                // INNER PHASE 2: Execute the internal phase 2 inference on 'singleSymbolTex'
                 string classLabel = aiReader.RecognizeSymbol(singleSymbolTex, out float aiConfidence);
-
                 Debug.LogWarning($"[IA RESULT]: Found '{classLabel}' with confidence of {aiConfidence * 100f}%");
 
                 if (classLabel == "Garbage" || aiConfidence < 0.65f)
                 {
-                    Debug.LogWarning("The isolated symbol is garbage or unstable. Spell failed.");
+                    Debug.LogError("The isolated symbol is garbage or unstable. This piece failed.");
+                    return;
                 }
-                else if (classLabel == "Fire Sigil")
+                else
                 {
-                    Debug.Log("Fire Sigil Confirmed!");
-                    // Save the information about the magical element
-                }
-                else if (classLabel == "Column")
-                {
-                    Debug.Log("Column Confirmed!");
-                    // Calculate the direction of the column based on the symbol's orientation
-                    //Vector2 arrowDir = CalculateColumnDirection(symbolGroup);
-                    //float arrowAngle = Mathf.Atan2(arrowDir.y, arrowDir.x) * Mathf.Rad2Deg;
-                    //Debug.Log($"Modificatore Direzione Confermato! Angolo: {arrowAngle}°");
+                    // Generate data structure for the symbol
+                    AnalyzedSymbolData data = new AnalyzedSymbolData();
+                    data.ClassLabel = classLabel;
+                    data.Accuracy = aiConfidence;
+                    data.Size = maxDim;
+                    data.CenterPosition = symbolCenter3D;
+                    data.RotationAngle = 0f; // Default for sigils that are stationary
+
+                    // If it's a column sigil, we need to calculate its rotation angle based on the line's direction
+                    if (classLabel == "Column")
+                    {
+                        Vector2 columnDir = CalculateColumnDirection(symbolGroup);
+                        data.RotationAngle = Mathf.Atan2(columnDir.y, columnDir.x) * Mathf.Rad2Deg;
+                    }
+
+                    // Save the symbol in the global magic inventory
+                    collectedSymbols.Add(data);
                 }
             }
 
@@ -318,6 +381,15 @@ public class DrawScript : MonoBehaviour
         foreach (var cl in circleLines)
         {
             cl.gameObject.layer = inkLayerIndex;
+        }
+
+        if (collectedSymbols.Count > 0 && vfxMaker != null)
+        {
+            // Convert the 2D circle center to 3D world position for the VFX
+            Vector3 circleCenter3D = new Vector3(circleCenter.x, objBelowDrawing.transform.position.y + 0.05f, circleCenter.y);
+
+            // Send all collected data to the VFX creator
+            vfxMaker.CreateSpellEffects(collectedSymbols, circleRadius, circleCenter3D);
         }
 
         Debug.Log("Multicomponent analysis completed successfully.");
@@ -420,6 +492,30 @@ public class DrawScript : MonoBehaviour
             }
         }
         return false;
+    }
+
+    Vector2 CalculateColumnDirection(List<LineRenderer> lines)
+    {
+        if (lines == null || lines.Count == 0) return Vector2.up;
+        LineRenderer mainLine = lines[0];
+        float maxDist = 0f;
+
+        foreach (var lr in lines)
+        {
+            if (lr.positionCount < 2) continue;
+            Vector3 start = lr.GetPosition(0);
+            Vector3 end = lr.GetPosition(lr.positionCount - 1);
+            float dist = Vector3.Distance(start, end);
+            if (dist > maxDist) { maxDist = dist; mainLine = lr; }
+        }
+
+        if (mainLine.positionCount >= 2)
+        {
+            Vector3 startW = mainLine.transform.TransformPoint(mainLine.GetPosition(0));
+            Vector3 endW = mainLine.transform.TransformPoint(mainLine.GetPosition(mainLine.positionCount - 1));
+            return new Vector2(endW.x - startW.x, endW.z - startW.z).normalized;
+        }
+        return Vector2.up;
     }
 
     (Vector3,bool) GetSurfacePosition()

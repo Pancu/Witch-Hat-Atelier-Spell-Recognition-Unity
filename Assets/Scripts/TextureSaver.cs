@@ -1,5 +1,7 @@
 using UnityEngine;
 using System.IO;
+
+// Use this utility class to save a Texture2D as a PNG file in the "DrawnSymbols" folder within the Assets directory.
 public static class TextureSaver
 {
     public static void SaveTextureAsPNG(Texture2D texture, string fileName)
