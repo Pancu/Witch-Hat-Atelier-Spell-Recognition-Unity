@@ -35,6 +35,8 @@ public class DrawScript : MonoBehaviour
     [Header("AI Camera Setup")]
     [SerializeField] Camera aiCamera; // AI neural network camera
     [SerializeField] RenderTexture highResRT; // To eventually downsample if needed
+
+    [SerializeField] private SpellAIReader aiReader;
     private void Start()
     {
         finalCircleIdentifier = gameObject.AddComponent<FinalCircleIdentifier>();
@@ -179,7 +181,7 @@ public class DrawScript : MonoBehaviour
 
         // GROUP INNER SYMBOLS
         // If two lines' dots have a lesser tolerance distance than a threshold, they are considered part of the same symbol
-        float connectionTolerance = 0.1f;
+        float connectionTolerance = 0.2f;
         List<List<LineRenderer>> internalSymbols = GroupInternalSymbols(allLineRenderers, connectionTolerance);
 
         Debug.Log($"Found {internalSymbols.Count} distinct internal symbols inside the circle.");
@@ -242,6 +244,7 @@ public class DrawScript : MonoBehaviour
             aiCamera.transform.position = symbolCenter3D;
             aiCamera.orthographicSize = (Mathf.Max(symbolWidth, symbolHeight) / 2f) * 1.15f;
 
+            aiCamera.Render();
             // Convert RenderTexture to Texture2D to feed it to the AI
             RenderTexture currentRT = RenderTexture.active;
             RenderTexture.active = renderTexture;
@@ -259,6 +262,8 @@ public class DrawScript : MonoBehaviour
 
             singleSymbolTex.Apply();
 
+            // Save: TextureSaver.SaveTextureAsPNG(singleSymbolTex, "symbol_" + System.DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + UnityEngine.Random.Range(0000, 9999));
+
             RenderTexture.active = currentRT;
 
             // Send the symbol to the AI for analysis
@@ -266,8 +271,30 @@ public class DrawScript : MonoBehaviour
             {
                 Debug.Log($"Isolated symbol sent to AI (Dimensions: {symbolWidth}x{symbolHeight})");
 
-                // INNER PHASE 2: Execute the internal phase 2 inference on 'singleSymbolTex' here!
-                // Example: string class = RunAIInference(singleSymbolTex);
+                // INNER PHASE 2: Execute the internal phase 2 inference on 'singleSymbolTex'
+                string classLabel = aiReader.RecognizeSymbol(singleSymbolTex, out float aiConfidence);
+
+                Debug.LogWarning($"[IA RESULT]: Found '{classLabel}' with confidence of {aiConfidence * 100f}%");
+
+                if (classLabel == "Garbage" || aiConfidence < 0.65f)
+                {
+                    Debug.LogWarning("The isolated symbol is garbage or unstable. Spell failed.");
+                    // Logica di interruzione (es. interrompi il loop ed esci)
+                    break;
+                }
+                else if (classLabel == "Fire Sigil")
+                {
+                    Debug.Log("Fire Sigil Confirmed!");
+                    // Save the information about the magical element
+                }
+                else if (classLabel == "Column")
+                {
+                    Debug.Log("Column Confirmed!");
+                    // Calculate the direction of the column based on the symbol's orientation
+                    //Vector2 arrowDir = CalculateColumnDirection(symbolGroup);
+                    //float arrowAngle = Mathf.Atan2(arrowDir.y, arrowDir.x) * Mathf.Rad2Deg;
+                    //Debug.Log($"Modificatore Direzione Confermato! Angolo: {arrowAngle}°");
+                }
             }
 
             Destroy(singleSymbolTex); // Free memory after use
@@ -294,7 +321,7 @@ public class DrawScript : MonoBehaviour
             cl.gameObject.layer = inkLayerIndex;
         }
 
-        Debug.Log("Analisi multicomponente completata con successo.");
+        Debug.Log("Multicomponent analysis completed successfully.");
     }
 
     bool IsTextureEmpty(Texture2D tex)
