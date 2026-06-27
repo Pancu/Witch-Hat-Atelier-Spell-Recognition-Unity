@@ -1,6 +1,6 @@
 # Witch Hat Atelier Spell Symbol Recognizer - Unity Engine Sample Project
 
-Unity Engine version, inspired by the web version: https://github.com/ytnrvdf/wha-spell-simulator
+**Unity Engine** version, inspired by the web version: https://github.com/ytnrvdf/wha-spell-simulator
 
 It recognizes Fire symbols and Columns, read below how to add more symbols 
 
@@ -15,6 +15,12 @@ If there are points inside the radius tolerance, and all the sectors of the circ
 
 Once in analysis, all of the spell content are subdivided (if 2 points are near each other => they are part of the same group) and sent to the ML model to evaluate
 
-## How can I add more symbols?
+## How can I add more symbols? / How can I change the model?
 
-You can add more symbols by training your own model in https://teachablemachine.withgoogle.com/, and swapping it with the model in the sample project
+You can add more symbols by:
+- Training your own model in https://teachablemachine.withgoogle.com/ 
+- Download it as a Tensorflow Savedmodel file
+- Extract the folder and (if you're on **Windows**) run: `python -m tf2onnx.convert --saved-model "[Downloaded Path]\converted_savedmodel\model.savedmodel" --output model.onnx` (Make sure you have **tf2onnx installed**, if not run this before: `pip install tensorflow tf2onnx`)
+- Replace the old model file with the created .onnx file in Assets/Models
+- Make sure SpellAIReader references the new model
+- Test it out!
