@@ -332,10 +332,9 @@ public class DrawScript : MonoBehaviour
                 string classLabel = aiReader.RecognizeSymbol(singleSymbolTex, out float aiConfidence);
                 Debug.LogWarning($"[IA RESULT]: Found '{classLabel}' with confidence of {aiConfidence * 100f}%");
 
-                if (classLabel == "Garbage" || aiConfidence < 0.65f)
+                if (classLabel == "Garbage" || aiConfidence < 0.5f)
                 {
                     Debug.LogError("The isolated symbol is garbage or unstable. This piece failed.");
-                    return;
                 }
                 else
                 {

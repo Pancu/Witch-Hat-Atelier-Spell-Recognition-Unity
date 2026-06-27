@@ -23,7 +23,7 @@ public class SpellVFXMaker : MonoBehaviour
         {
             if (symbol.ClassLabel == "Fire Sigil")
             {
-                primaryElement = "Fire";
+                primaryElement = symbol.ClassLabel;
                 elementAccuracy = symbol.Accuracy;
                 elementSize = symbol.Size;
             }
@@ -41,7 +41,7 @@ public class SpellVFXMaker : MonoBehaviour
         }
 
         // Generate primary element VFX (for now, only Fire is implemented)
-        if (primaryElement == "Fire" && fireCorePrefab != null)
+        if (primaryElement == "Fire Sigil" && fireCorePrefab != null)
         {
             // Instantiate the effect at the center of the magic circle
             GameObject coreVFX = Instantiate(fireCorePrefab, circleCenter3D, Quaternion.identity);
@@ -57,7 +57,7 @@ public class SpellVFXMaker : MonoBehaviour
         {
             if (mod.ClassLabel == "Column" && columnPrefab != null)
             {
-                // Applichiamo la rotazione calcolata in C# sull'asse Y
+                /*// Applichiamo la rotazione calcolata in C# sull'asse Y
                 Quaternion vfxRotation = Quaternion.Euler(0, -mod.RotationAngle, 0);
 
                 // Istanziamo l'effetto nella posizione esatta in cui l'utente ha disegnato il simbolo
@@ -66,7 +66,7 @@ public class SpellVFXMaker : MonoBehaviour
                 // Modifichiamo la lunghezza o la potenza del VFX in base a quanto grande l'ha disegnato l'utente
                 columnVFX.transform.localScale = new Vector3(mod.Size, mod.Size, mod.Size * 2f);
 
-                Debug.Log($"[VFX]: Evocata colonna direzionale a {mod.RotationAngle}° in posizione {mod.CenterPosition}");
+                Debug.Log($"[VFX]: Evocata colonna direzionale a {mod.RotationAngle}° in posizione {mod.CenterPosition}");*/
             }
         }
     }
