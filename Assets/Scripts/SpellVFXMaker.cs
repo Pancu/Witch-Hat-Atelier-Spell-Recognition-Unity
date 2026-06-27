@@ -5,7 +5,6 @@ public class SpellVFXMaker : MonoBehaviour
 {
     [Header("VFX Prefabs")]
     [SerializeField] private GameObject fireCorePrefab;
-    [SerializeField] private GameObject columnPrefab;
     // Add other VFX prefabs here as needed
 
     public void CreateSpellEffects(List<AnalyzedSymbolData> symbols, float outerCircleRadius, Vector3 circleCenter3D)
@@ -55,18 +54,9 @@ public class SpellVFXMaker : MonoBehaviour
         // Generating modifier effects (for now, only Column is implemented)
         foreach (var mod in modifiers)
         {
-            if (mod.ClassLabel == "Column" && columnPrefab != null)
+            if (mod.ClassLabel == "Column")
             {
-                /*// Applichiamo la rotazione calcolata in C# sull'asse Y
-                Quaternion vfxRotation = Quaternion.Euler(0, -mod.RotationAngle, 0);
-
-                // Istanziamo l'effetto nella posizione esatta in cui l'utente ha disegnato il simbolo
-                GameObject columnVFX = Instantiate(columnPrefab, mod.CenterPosition, vfxRotation);
-
-                // Modifichiamo la lunghezza o la potenza del VFX in base a quanto grande l'ha disegnato l'utente
-                columnVFX.transform.localScale = new Vector3(mod.Size, mod.Size, mod.Size * 2f);
-
-                Debug.Log($"[VFX]: Evocata colonna direzionale a {mod.RotationAngle}° in posizione {mod.CenterPosition}");*/
+                // Column effect on the overall magic should be applied here
             }
         }
     }
